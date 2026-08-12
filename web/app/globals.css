@@ -1,0 +1,129 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --surface-base: 255 255 255;
+    --surface-raised: 255 255 255;
+    --surface-sunken: 246 247 249;
+    --surface-hover: 241 243 246;
+
+    --line: 226 230 236;
+    --line-strong: 203 210 219;
+
+    --ink: 17 24 32;
+    --ink-muted: 91 103 117;
+    --ink-faint: 141 152 165;
+    --ink-inverse: 255 255 255;
+
+    --brand: 29 78 216;
+    --brand-soft: 238 243 255;
+    --brand-ink: 30 64 175;
+
+    /* Margin bands. Deliberately not a red-to-green gradient: loss and
+       critical must be distinguishable from "merely low". */
+    --loss: 190 24 60;
+    --critical: 217 70 39;
+    --warn: 180 121 12;
+    --healthy: 21 128 96;
+    --target: 15 118 110;
+    --unknown: 148 158 170;
+
+    --font-sans: 'Inter', system-ui;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+      --surface-base: 13 17 23;
+      --surface-raised: 22 27 34;
+      --surface-sunken: 9 12 16;
+      --surface-hover: 30 36 45;
+
+      --line: 42 50 60;
+      --line-strong: 60 70 82;
+
+      --ink: 230 237 243;
+      --ink-muted: 148 161 175;
+      --ink-faint: 108 120 133;
+      --ink-inverse: 13 17 23;
+
+      --brand: 96 145 255;
+      --brand-soft: 24 33 54;
+      --brand-ink: 147 180 255;
+
+      --loss: 251 113 133;
+      --critical: 251 146 106;
+      --warn: 234 179 8;
+      --healthy: 52 211 153;
+      --target: 45 212 191;
+      --unknown: 116 128 141;
+    }
+  }
+
+  :root[data-theme='dark'] {
+    --surface-base: 13 17 23;
+    --surface-raised: 22 27 34;
+    --surface-sunken: 9 12 16;
+    --surface-hover: 30 36 45;
+
+    --line: 42 50 60;
+    --line-strong: 60 70 82;
+
+    --ink: 230 237 243;
+    --ink-muted: 148 161 175;
+    --ink-faint: 108 120 133;
+    --ink-inverse: 13 17 23;
+
+    --brand: 96 145 255;
+    --brand-soft: 24 33 54;
+    --brand-ink: 147 180 255;
+
+    --loss: 251 113 133;
+    --critical: 251 146 106;
+    --warn: 234 179 8;
+    --healthy: 52 211 153;
+    --target: 45 212 191;
+    --unknown: 116 128 141;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-surface-sunken text-ink antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'tnum';
+  }
+
+  /* Tabular figures everywhere money or scores are compared down a column. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  *:focus-visible {
+    @apply outline-none ring-2 ring-brand/60 ring-offset-1 ring-offset-surface-base;
+  }
+}
+
+@layer components {
+  .skeleton {
+    @apply relative overflow-hidden rounded bg-surface-hover;
+  }
+  .skeleton::after {
+    content: '';
+    @apply absolute inset-0 -translate-x-full;
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      rgb(var(--ink) / 0.06),
+      transparent
+    );
+    animation: shimmer 1.4s infinite;
+  }
+
+  /* Horizontal scroll is contained per-table; the page body never scrolls sideways. */
+  .table-scroll {
+    @apply overflow-x-auto overscroll-x-contain;
+  }
+}
