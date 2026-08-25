@@ -13,8 +13,18 @@ import Icon from '../ui/Icon.jsx';
  * products — real photos, filled-in specs, a description — at the front. That
  * is the right shop window: the products the catalog can actually sell.
  */
-export default function FeaturedSection({ eyebrow = 'The shelf', title, subtitle, params, limit = 8 }) {
-  const { data, isLoading, isError, error } = useProducts({ limit, ...params });
+export default function FeaturedSection({
+  eyebrow = 'The shelf',
+  title,
+  subtitle,
+  params,
+  limit = 8,
+  initialProducts,
+}) {
+  const { data, isLoading, isError, error } = useProducts(
+    { limit, ...params },
+    { initialData: initialProducts },
+  );
   const products = data?.items ?? [];
 
   return (

@@ -6,7 +6,8 @@ storefront's job is to get a customer to the point of knowing what they want.
 
 - **Next.js 14 (App Router) · React Query · TailwindCSS**
 - Talks to the backend over HTTP only, through the public catalog API
-- Product pages are **statically generated** on slug URLs and carry Schema.org structured data
+- Product pages are **statically generated** on slug URLs; the catalog is **server-rendered** per request
+- Schema.org `Product`, `BreadcrumbList` and `Store` structured data, with a canonical on every page
 
 ---
 
@@ -48,6 +49,13 @@ npm run dev
 ```
 
 The shop is on `http://localhost:3001`.
+
+To exercise the production build the way the container runs it — `next start` does not support
+`output: 'standalone'`, so `npm start` assembles the standalone bundle and runs its server:
+
+```bash
+npm run build && npm start
+```
 
 ---
 
@@ -117,9 +125,14 @@ The only conversion path is "customer finds product, customer messages shop", so
 is the funnel rather than a finishing touch.
 
 - **Slug URLs** — `/products/joyroom-jr-tcg13-gan-wall-charger-45w-usb-c`, not a database id.
-- **Static HTML** — price, specs and description are in the markup, not fetched after hydration.
-- **Schema.org `Product`** on every product page, `Store` on the site, with only the fields the
-  catalog actually knows. An invented `gtin` is a manual-action risk, not a ranking boost.
+- **Server-rendered HTML** — prices, specs and descriptions are in the markup on every page, not
+  fetched after hydration. That includes the catalog grid and each category filter.
+- **Schema.org `Product`** and `BreadcrumbList` on every product page, `Store` on the site, with
+  only the fields the catalog actually knows. An invented `gtin` is a manual-action risk, not a
+  ranking boost.
+- **A canonical per page**, declared by the page itself. Metadata declared in the root layout is
+  inherited by every page that does not override it, so a canonical set there marks the whole shop
+  as a duplicate of the home page.
 - **Sitemap and robots** — real last-modified dates; filtered and sorted URLs excluded so crawl
   budget goes to product pages rather than to the same products in a different order.
 - **Images** — the catalog ships 24 MB of unprocessed supplier photos, several over 1 MB. `next/image`
@@ -186,6 +199,7 @@ what the shop searches on, and "the black 65W one" costs a round trip that `S-A6
   rebuild to become reachable, which the sitemap needs anyway.
 - **Legacy id URLs 404 here**, though the API still resolves them. No id-based product URL was ever
   published publicly.
-- **The listing page is still client-rendered.** Its filters live in the query string and change on
-  every interaction, so there is nothing stable to pre-render; product pages are what search
-  engines rank.
+- **The listing page is server-rendered per request, then hydrates.** Its filters live in the query
+  string, so there is nothing stable to pre-render — but the page reads those filters on the server
+  and hands the client component the result it already fetched, under the same React Query key. The
+  HTML carries the products; the grid stays interactive.

@@ -5,18 +5,10 @@ import { whatsappLink, shop } from '../../lib/shop.js';
 import Gallery from './Gallery.jsx';
 import ProductGrid from './ProductGrid.jsx';
 import Icon from '../ui/Icon.jsx';
+import { productTrail } from '../../lib/breadcrumbs.js';
 
 function Breadcrumbs({ product }) {
-  const trail = [
-    { label: 'Home', href: '/' },
-    { label: 'Products', href: '/products' },
-    product.category
-      ? {
-          label: product.category,
-          href: `/products?category=${encodeURIComponent(product.category)}`,
-        }
-      : null,
-  ].filter(Boolean);
+  const trail = productTrail(product);
 
   return (
     <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-sm">

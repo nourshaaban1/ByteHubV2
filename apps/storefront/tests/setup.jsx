@@ -18,6 +18,12 @@ vi.mock('next/image', () => ({
   },
 }));
 
+// next/font is a build-time transform; outside the Next compiler the import is
+// an object, not a callable, so any module importing the layout blows up.
+vi.mock('next/font/google', () => ({
+  Inter: () => ({ variable: 'font-inter', className: 'font-inter', style: {} }),
+}));
+
 vi.mock('next/link', () => ({
   default: ({ href, children, ...rest }) => (
     <a href={typeof href === 'string' ? href : '#'} {...rest}>

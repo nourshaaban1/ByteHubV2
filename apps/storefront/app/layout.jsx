@@ -24,12 +24,15 @@ export const metadata = {
   },
   description: shop.tagline,
   applicationName: shop.name,
-  alternates: { canonical: '/' },
+  // Deliberately no `alternates.canonical` and no `openGraph.url` here. Next
+  // merges layout metadata into every page, so a canonical set at this level
+  // is inherited by pages that do not override it — which told search engines
+  // that /products was a duplicate of the home page. Each page declares its
+  // own.
   openGraph: {
     type: 'website',
     siteName: shop.name,
     locale: 'en_EG',
-    url: '/',
     title: `${shop.name} — ${shop.tagline}`,
     description: shop.tagline,
   },

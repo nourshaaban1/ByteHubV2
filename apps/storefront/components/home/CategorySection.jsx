@@ -6,8 +6,8 @@ import { useFacets } from '../../lib/hooks.js';
 import { formatCount } from '../../lib/format.js';
 import Icon from '../ui/Icon.jsx';
 
-export default function CategorySection() {
-  const { data: facets } = useFacets();
+export default function CategorySection({ initialFacets }) {
+  const { data: facets } = useFacets({ initialData: initialFacets });
 
   const countFor = (name) =>
     facets?.categories?.find((entry) => entry.name === name)?.count ?? null;

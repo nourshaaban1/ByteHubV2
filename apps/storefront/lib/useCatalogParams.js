@@ -2,6 +2,9 @@
 
 import { useCallback, useMemo } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { ARRAY_KEYS, DEFAULT_SORT, PAGE_SIZE, queryFrom, readFilters } from './catalog-query.js';
+
+export { DEFAULT_SORT, PAGE_SIZE };
 
 /**
  * Catalog filter state, held in the URL rather than in React state.
@@ -10,41 +13,16 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
  * the back button — all three of which a customer expects from a shop and none
  * of which come free with useState. It also means the navbar's category links
  * are ordinary hrefs instead of clicks that have to reach into a store.
+ *
+ * Reading the query string is in `catalog-query.js`, shared with the server so
+ * the page can render the first grid without waiting for the browser.
  */
-const ARRAY_KEYS = new Set(['category', 'brand']);
-const NUMBER_KEYS = new Set(['min_price', 'max_price', 'page']);
-
-export const DEFAULT_SORT = 'featured';
-export const PAGE_SIZE = 24;
-
 export function useCatalogParams() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const filters = useMemo(() => {
-    const read = (key) => searchParams.get(key) || undefined;
-    const readList = (key) => {
-      const raw = read(key);
-      return raw ? raw.split(',').filter(Boolean) : [];
-    };
-    const readNumber = (key) => {
-      const raw = read(key);
-      if (raw === undefined) return undefined;
-      const parsed = Number(raw);
-      return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
-    };
-
-    return {
-      search: read('search'),
-      category: readList('category'),
-      brand: readList('brand'),
-      min_price: readNumber('min_price'),
-      max_price: readNumber('max_price'),
-      sort: read('sort') ?? DEFAULT_SORT,
-      page: readNumber('page') ?? 1,
-    };
-  }, [searchParams]);
+  const filters = useMemo(() => readFilters(searchParams), [searchParams]);
 
   /**
    * Merges a patch into the URL.
@@ -100,20 +78,7 @@ export function useCatalogParams() {
     (filters.min_price !== undefined ? 1 : 0) +
     (filters.max_price !== undefined ? 1 : 0);
 
-  /** Exactly the shape the public API expects. */
-  const query = useMemo(
-    () => ({
-      search: filters.search,
-      category: filters.category,
-      brand: filters.brand,
-      min_price: filters.min_price,
-      max_price: filters.max_price,
-      sort: filters.sort,
-      page: filters.page,
-      limit: PAGE_SIZE,
-    }),
-    [filters],
-  );
+  const query = useMemo(() => queryFrom(filters), [filters]);
 
   return { filters, query, update, toggleInList, clearAll, activeCount };
 }

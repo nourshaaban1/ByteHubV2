@@ -12,9 +12,18 @@ import FilterPanel from '../filters/FilterPanel.jsx';
 import SortSelect from '../filters/SortSelect.jsx';
 import ActiveFilters from '../filters/ActiveFilters.jsx';
 
-export default function CatalogView() {
+/**
+ * `initialProducts` is the result the page already fetched for this URL.
+ *
+ * Without it the grid renders empty on the server, so the HTML carries no
+ * product names and no links to them — and this is the page every category
+ * link in the navbar and the sitemap points at.
+ */
+export default function CatalogView({ initialProducts }) {
   const { filters, query, update, toggleInList, clearAll, activeCount } = useCatalogParams();
-  const { data, isLoading, isFetching, isError, error } = useProducts(query);
+  const { data, isLoading, isFetching, isError, error } = useProducts(query, {
+    initialData: initialProducts,
+  });
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const products = data?.items ?? [];

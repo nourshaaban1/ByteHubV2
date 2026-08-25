@@ -12,8 +12,8 @@ New Catalog/       product photos      one folder per product
 archive/web/       the old admin UI    archived — see archive/README.md
 ```
 
-- **418 tests** — 377 API, 41 storefront
-- Product pages are **pre-rendered static HTML** on slug URLs, with Schema.org structured data
+- **426 tests** — 377 API, 49 storefront
+- Every page is **rendered on the server** on slug URLs, with Schema.org structured data
 
 ---
 
@@ -109,11 +109,15 @@ For a business whose only conversion path is "customer finds product, customer m
 
 **Slug URLs.** `/products/joyroom-jr-tcg13-gan-wall-charger-45w-usb-c`, not a MongoDB id. The API resolves both, so any older link still works.
 
-**Server-rendered, statically generated.** Every product page is real HTML with the price, specs and description already in it. Nothing waits on JavaScript, which matters as much for a phone on Egyptian mobile data as it does for a crawler.
+**Server-rendered.** Every page is real HTML with the products, prices and specs already in it — product pages generated at build time, the catalog rendered per request so a category filter is a real page rather than an empty grid waiting on JavaScript. That matters as much for a phone on Egyptian mobile data as it does for a crawler.
 
-**Structured data.** Each page carries a Schema.org `Product` with price, currency, availability, brand and SKU — the difference between a plain blue link and a result with a price on it. The site itself is marked up as a `Store` with a search action.
+The catalog grid stays interactive: the client component that owns filtering is handed the same result the server already fetched, under the same cache key, so hydration continues from that page instead of replacing it.
+
+**Structured data.** Each product page carries a Schema.org `Product` with price, currency, availability, brand and SKU — the difference between a plain blue link and a result with a price on it — plus a `BreadcrumbList` built from the same trail the customer sees. The site itself is marked up as a `Store` with a search action.
 
 Only fields the catalog actually knows are emitted. An invented `gtin` or a guessed `priceValidUntil` is a manual-action risk, not a ranking boost.
+
+**One canonical per page.** The home page, the catalog and each category declare their own. A canonical set once in the root layout is inherited by every page that does not override it, which quietly tells search engines the whole shop is a duplicate of its front door.
 
 **Real 404s.** An unknown slug returns a genuine 404 rather than an empty page with a 200. Soft 404s are how a shop ends up with unlimited junk URLs indexed as real pages.
 
@@ -223,7 +227,7 @@ npm run test:all
 
 **API (377).** Pricing arithmetic, the money and percent parsers, header detection, column mapping, SKU and brand normalisation, spec extraction and quality scoring — including the awkward cases: `"-25"` is a negative number and not a range, `"n/a — priced above market"` is not a price, Arabic-Indic digits, division by zero, `null` everywhere. Integration tests run the pipeline over the real spreadsheets and drive the HTTP surface against an in-memory MongoDB.
 
-**Storefront (41).** Structured data, product rendering, and the server-side catalog reads. The recurring theme is refusing to invent: a missing price renders "Price on request" and never `0 EGP`, an estimated one says so, and the JSON-LD omits fields the catalog does not know rather than filling them in.
+**Storefront (49).** Structured data, canonical URLs, product rendering, and the server-side catalog reads. The recurring theme is refusing to invent: a missing price renders "Price on request" and never `0 EGP`, an estimated one says so, and the JSON-LD omits fields the catalog does not know rather than filling them in.
 
 ---
 

@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import ProductDetail from '../../../components/product/ProductDetail.jsx';
-import ProductJsonLd from '../../../components/seo/ProductJsonLd.jsx';
+import ProductJsonLd, { BreadcrumbJsonLd } from '../../../components/seo/ProductJsonLd.jsx';
 import {
   fetchProduct,
   fetchRelated,
@@ -9,6 +9,7 @@ import {
 } from '../../../lib/server-api.js';
 import { formatPrice } from '../../../lib/format.js';
 import { shop } from '../../../lib/shop.js';
+import { productTrail } from '../../../lib/breadcrumbs.js';
 
 /**
  * Product pages are rendered on the server and cached.
@@ -103,6 +104,7 @@ export default async function ProductPage({ params }) {
   return (
     <>
       <ProductJsonLd product={product} />
+      <BreadcrumbJsonLd trail={productTrail(product)} />
       <ProductDetail product={product} related={related} />
     </>
   );

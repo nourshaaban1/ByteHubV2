@@ -16,12 +16,14 @@ import Icon from '../ui/Icon.jsx';
  * the copy: a storefront claiming "500+ products" over a catalog of 59 is
  * exactly the kind of detail that costs a shop trust.
  */
-export default function Hero() {
-  const { data: facets } = useFacets();
+export const SHELF_QUERY = { has_image: true, limit: 12, sort: 'featured' };
+
+export default function Hero({ initialFacets, initialShelf }) {
+  const { data: facets } = useFacets({ initialData: initialFacets });
 
   // Only products with real photography — this is a shop window, and a row of
   // placeholder glyphs is worse than no row at all.
-  const { data } = useProducts({ has_image: true, limit: 12, sort: 'featured' });
+  const { data } = useProducts(SHELF_QUERY, { initialData: initialShelf });
   const shelf = data?.items ?? [];
 
   const stats = [
