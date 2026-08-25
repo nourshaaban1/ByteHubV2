@@ -1,9 +1,23 @@
 node_modules/
-.env
-.env.local
 coverage/
 logs/
 *.log
 tmp/
 uploads/
 .DS_Store
+
+# Environment. Every variant is ignored except the checked-in templates, so a
+# real .env cannot be staged by a wildcard add.
+.env
+.env.*
+!.env.example
+!.env.production.example
+
+# Build output
+.next/
+out/
+
+# Windows Explorer folder metadata, created inside the catalog directories.
+desktop.ini
+Thumbs.db
+ehthumbs.db

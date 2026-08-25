@@ -36,6 +36,24 @@ export const dynamicParams = false;
 
 export async function generateStaticParams() {
   const entries = await fetchSitemapEntries();
+
+  /**
+   * A build that reaches no catalog produces a shop with no product pages, and
+   * because `dynamicParams` is off every product URL would then 404. That is
+   * silent: the build succeeds, the home page renders, and only the products
+   * are missing. In a container build, where an unreachable API is the likely
+   * failure, fail loudly instead.
+   *
+   * Left off for local builds, where building without a running API is normal.
+   */
+  if (entries.length === 0 && process.env.REQUIRE_CATALOG === '1') {
+    throw new Error(
+      'No published products were reachable at build time, so no product pages ' +
+        'would exist. Check that the catalog API is up and that the catalog has ' +
+        'been imported and published.',
+    );
+  }
+
   return entries.map((entry) => ({ handle: entry.slug }));
 }
 

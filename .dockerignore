@@ -1,0 +1,12 @@
+node_modules
+npm-debug.log
+.git
+.env
+.env.local
+.scratch
+coverage
+tests
+archive
+apps
+Old Catalog
+**/.next

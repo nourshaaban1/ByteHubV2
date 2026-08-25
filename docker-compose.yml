@@ -1,0 +1,100 @@
+# ByteHub — production-shaped stack.
+#
+# Three services: MongoDB, the catalog API, and the storefront. Only the
+# storefront is exposed publicly; the API is reachable on the internal network
+# and through the storefront's proxy, which is why its admin routes stay off.
+#
+# Order matters. The storefront pre-renders every product page at build time,
+# so the catalog has to exist and the API has to be reachable *before* that
+# image is built — `up -d --build` in one shot would build the shop against an
+# empty database and produce a site with no products.
+#
+#   cp .env.production.example .env
+#   docker compose up -d mongo api
+#   docker compose run --rm api npm run catalog -- --commit
+#   docker compose run --rm api npm run publish -- --commit
+#   docker compose build storefront      # joins the network created above
+#   docker compose up -d storefront
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: bytehub
+    networks: [bytehub]
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    # Not published to the host: nothing outside this network needs it.
+    expose:
+      - '27017'
+
+  api:
+    build: .
+    restart: unless-stopped
+    networks: [bytehub]
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: '4000'
+      MONGODB_URI: mongodb://mongo:27017/bytehub
+      SITE_URL: ${SITE_URL:?SITE_URL is required}
+      # Back-office routes stay unmounted. Catalog changes go through the CLI
+      # (`docker compose run --rm api npm run catalog -- --commit`).
+      ENABLE_ADMIN_API: 'false'
+      # Empty: the storefront proxies the API, so the browser never makes a
+      # cross-origin request. Set only if the shop and API differ by host.
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      USD_TO_EGP_RATE: ${USD_TO_EGP_RATE:-48.5}
+    volumes:
+      # Photos are read from disk, so new ones need no image rebuild.
+      - ./New Catalog:/app/New Catalog:ro
+    expose:
+      - '4000'
+
+  storefront:
+    build:
+      context: ./apps/storefront
+      # The build fetches the published catalog from the API, so it has to run
+      # on the same network. That network is created by `up -d mongo api`,
+      # which is why the storefront is built after them and not alongside.
+      network: bytehub
+      args:
+        NEXT_PUBLIC_SITE_URL: ${SITE_URL:?SITE_URL is required}
+        # Build-time page generation talks to the API over the compose network.
+        NEXT_PUBLIC_API_ORIGIN: http://api:4000
+        NEXT_PUBLIC_WHATSAPP: ${WHATSAPP:-201044100855}
+        NEXT_PUBLIC_PHONE: ${PHONE:-+20 10 4410 0855}
+        NEXT_PUBLIC_EMAIL: ${EMAIL:-hello@bytehub.eg}
+        NEXT_PUBLIC_ADDRESS: ${ADDRESS:-Cairo, Egypt}
+    restart: unless-stopped
+    networks: [bytehub]
+    depends_on:
+      - api
+    environment:
+      NODE_ENV: production
+      PORT: '3001'
+      HOSTNAME: '0.0.0.0'
+      # Server-side fetches and the rewrite proxy both resolve over the
+      # internal network, so the API is never addressed from the browser.
+      API_ORIGIN: http://api:4000
+      NEXT_PUBLIC_API_ORIGIN: http://api:4000
+    ports:
+      - '${PORT:-3001}:3001'
+
+networks:
+  # Named explicitly rather than relying on `default`, so the storefront build
+  # has a stable network to join.
+  bytehub:
+    name: bytehub
+
+volumes:
+  mongo-data:
