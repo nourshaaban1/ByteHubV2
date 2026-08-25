@@ -143,6 +143,13 @@ export const TAXONOMY = [
  * and without it a folder named "Dell" cannot tell the two apart.
  */
 export const IMAGE_FOLDER_HINTS = {
+  // New Catalog folder names (plural).
+  Cables: { category: 'Cables' },
+  Chargers: { category: 'Chargers' },
+  'Power Banks': { category: 'Power Banks' },
+
+  // Old Catalog folder names (singular), kept so a re-scan of the archive
+  // still resolves.
   Cable: { category: 'Cables' },
   Charger: { category: 'Chargers' },
   Converts: { category: 'Hubs & Adapters' },

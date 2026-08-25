@@ -232,7 +232,7 @@ const ProductSchema = new Schema(
   {
     name: { type: String, required: true, trim: true },
     name_key: { type: String, index: true },
-    slug: { type: String, index: true },
+    slug: { type: String },
 
     brand: { type: String, default: null, trim: true },
     brand_key: { type: String, default: null, index: true },
@@ -281,6 +281,16 @@ ProductSchema.index({ sku_key: 1 });
 
 // Idempotency anchor: re-running an import updates rather than duplicates.
 ProductSchema.index({ fingerprint: 1 }, { unique: true });
+
+/**
+ * Slugs are product URLs on the storefront, so two products sharing one would
+ * make the second unreachable. Unique and partial: rows imported before slugs
+ * existed may have none, and a null must not collide with another null.
+ */
+ProductSchema.index(
+  { slug: 1 },
+  { unique: true, partialFilterExpression: { slug: { $type: 'string' } } },
+);
 ProductSchema.index({ category: 1, brand: 1 });
 ProductSchema.index({ 'status.is_active': 1, 'status.is_verified': 1 });
 ProductSchema.index({ 'pricing.margin_percentage': 1 });

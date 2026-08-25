@@ -13,6 +13,7 @@ import { mapColumns, inferSheetCurrency } from './parsers/columnMapper.js';
 import { classifyRow, ROW_TYPES } from './parsers/rowClassifier.js';
 import { transformRow, revalidate, deriveKeys } from './catalog.transformer.js';
 import { normalizeCategory } from './cleaners/category.normalizer.js';
+import { resolveSlugConflicts, reservedSlugs } from './slug.js';
 
 /** Sheet names that carry a procurement verdict for every row inside them. */
 const SHEET_PROCUREMENT = [
@@ -65,7 +66,7 @@ const ADMIN_OWNED_PATHS = [
  * $setOnInsert applies only when the upsert creates, so a re-import still
  * cannot touch a product an admin has since verified.
  */
-const ADMIN_OWNED_DEFAULTS = Object.freeze({
+export const ADMIN_OWNED_DEFAULTS = Object.freeze({
   'status.is_verified': false,
   'status.verified_by': null,
   'status.verified_at': null,
@@ -354,6 +355,17 @@ async function persistDrafts(drafts, { dryRun, importRunId }) {
     .select('fingerprint metadata.locked_fields status.is_verified status.lifecycle')
     .lean();
   const existingByFingerprint = new Map(existingDocs.map((doc) => [doc.fingerprint, doc]));
+
+  // Slugs are unique in the database, and these workbooks really do describe
+  // two different products under one name — the same Arabic charger name
+  // appears in two sheets with different supplier codes. Resolve against what
+  // is already stored, not just within this batch.
+  const renamed = resolveSlugConflicts(drafts, {
+    reservedBy: await reservedSlugs(Product, drafts.map((draft) => draft.slug).filter(Boolean)),
+  });
+  if (renamed.length > 0) {
+    logger.info(`slug conflicts resolved: ${renamed.map((c) => `${c.from} -> ${c.to}`).join(', ')}`);
+  }
 
   const operations = [];
 

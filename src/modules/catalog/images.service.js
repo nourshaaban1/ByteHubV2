@@ -17,6 +17,28 @@ const resolveRoot = (root = env.ingestion.imageRoot) =>
 
 const toPosix = (value) => value.replace(/\\/g, '/');
 
+/** Every image under `dir`, as paths relative to the catalog root. */
+function collectImages(dir, absoluteRoot) {
+  const entries = fs
+    .readdirSync(dir, { withFileTypes: true })
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const files = [];
+  const nested = [];
+
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      nested.push(...collectImages(full, absoluteRoot));
+      continue;
+    }
+    if (!IMAGE_EXTENSIONS.has(path.extname(entry.name).toLowerCase())) continue;
+    files.push(toPosix(path.relative(absoluteRoot, full)));
+  }
+
+  return [...files, ...nested];
+}
+
 /**
  * Walks `Catalog/<Category>/<Product>/` into one entry per product folder.
  * The folder tree is a second, independent source of product identity: it
@@ -36,10 +58,10 @@ export function scanImageFolders(root = env.ingestion.imageRoot) {
       if (!productEntry.isDirectory()) continue;
       const productPath = path.join(categoryPath, productEntry.name);
 
-      const images = fs
-        .readdirSync(productPath, { withFileTypes: true })
-        .filter((file) => file.isFile() && IMAGE_EXTENSIONS.has(path.extname(file.name).toLowerCase()))
-        .map((file) => toPosix(path.relative(projectRoot(), path.join(productPath, file.name))));
+      // Descends into colour sub-folders. Liberty 5 keeps its photos under
+      // Black/, Blue/, Golden/ and White/, and a flat read found none of them —
+      // the product looked photoless and never appeared in this list at all.
+      const images = collectImages(productPath, absoluteRoot);
 
       if (images.length === 0) continue;
 
@@ -138,15 +160,23 @@ export function assignFolders(folders, products, threshold = DEFAULT_THRESHOLD) 
   return { matches, unmatched };
 }
 
+/**
+ * Image records as stored on a product.
+ *
+ * The URL uses the configured public prefix rather than the directory name:
+ * the catalog folder has been renamed once already, and a URL built from it
+ * would have broken every stored image. Segments are percent-encoded because
+ * these folder names contain spaces and commas.
+ */
 const imagePayload = (folder) =>
   folder.images.map((imagePath, index) => ({
     path: imagePath,
-    url: `/${imagePath}`,
+    url: `${env.ingestion.imagePublicPath}/${imagePath.split('/').map(encodeURIComponent).join('/')}`,
     is_primary: index === 0,
     source: folder.id,
   }));
 
-const productProjection = 'name sku brand category subcategory images';
+const productProjection = 'name sku brand category subcategory images status.is_active';
 
 /**
  * The image-management view: every folder, whether it is already linked, and
@@ -165,7 +195,10 @@ export async function overview({ threshold = DEFAULT_THRESHOLD, suggestions = 3 
     if (source) linkedByFolder.set(source, product);
   }
 
-  const unlinkedProducts = products.filter((product) => !product.images?.length);
+  // Archived products are not a gap to chase — they are deliberately retired.
+  const unlinkedProducts = products.filter(
+    (product) => !product.images?.length && product.status?.is_active !== false,
+  );
 
   const rows = folders.map((folder) => {
     const linked = linkedByFolder.get(folder.id) ?? null;

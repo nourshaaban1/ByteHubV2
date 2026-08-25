@@ -14,10 +14,10 @@ import { parseWorkbook, dedupeDrafts } from '../../src/modules/catalog/catalog.s
 
 const ROOT = process.cwd();
 const FILES = {
-  master: 'ByteHub_Master_Catalog.xlsx',
-  merged: 'Merged_Catalog.xlsx',
-  retail: 'product_catalog.xlsx',
-  plan: 'ByteHub_Action_Plan.xlsx',
+  master: 'Old Catalog/ByteHub_Master_Catalog.xlsx',
+  merged: 'Old Catalog/Merged_Catalog.xlsx',
+  retail: 'Old Catalog/product_catalog.xlsx',
+  plan: 'Old Catalog/ByteHub_Action_Plan.xlsx',
 };
 
 const available = Object.fromEntries(
@@ -77,8 +77,13 @@ describeIf('real catalog: ByteHub_Master_Catalog.xlsx', () => {
   });
 
   it('preserves Arabic product names', () => {
-    const product = bySku.get('JR-TCG13');
-    expect(product.name).toBe('شاحن 45W GaN');
+    // Most of this workbook is still Arabic-named; a few rows have since been
+    // relabelled in English. Assert the parser keeps Arabic intact wherever it
+    // finds it, rather than pinning one row that the source may rename.
+    const arabic = drafts.filter((draft) => /[؀-ۿ]/.test(draft.name));
+    expect(arabic.length).toBeGreaterThan(10);
+    expect(bySku.get('S-A59').name).toBe('كابل Vibrant 60W C-C');
+    expect(bySku.get('JR-T03S').name).toBe('سماعات TWS');
   });
 
   it('computes the Joyroom JR-TCG13 margin both ways', () => {
@@ -151,7 +156,6 @@ describeIf('real catalog: ByteHub_Master_Catalog.xlsx', () => {
     // "شاحن جداري Joyroom (مسودة)" draft and link the listing to an approved
     // Joyroom SKU. The merge does exactly that: one product, priced.
     const product = bySku.get('JR-TCG13');
-    expect(product.name).toBe('شاحن 45W GaN');
     expect(product.pricing.rdp).toBe(440);
     expect(product.issues.map((issue) => issue.code)).toContain('DUPLICATE_PRODUCT');
     expect(drafts.filter((draft) => draft.sku === 'JR-TCG13')).toHaveLength(1);

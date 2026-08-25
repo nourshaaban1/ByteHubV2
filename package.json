@@ -1,7 +1,7 @@
 {
-  "name": "bytehub-backend",
+  "name": "bytehub",
   "version": "1.0.0",
-  "description": "ByteHub — retail electronics catalog, pricing & data-quality backend",
+  "description": "ByteHub \u2014 online storefront for hardware and mobile accessories, and the catalog API behind it",
   "type": "module",
   "main": "src/server.js",
   "engines": {
@@ -10,12 +10,17 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "import": "node scripts/import.js",
-    "import:all": "node scripts/import.js --all",
-    "link:images": "node scripts/link-images.js",
+    "shop": "npm --prefix apps/storefront run dev",
+    "shop:build": "npm --prefix apps/storefront run build",
+    "shop:start": "npm --prefix apps/storefront run start",
+    "catalog": "node scripts/import-catalog.js",
     "publish": "node scripts/publish-catalog.js",
+    "import": "node scripts/import.js",
+    "link:images": "node scripts/link-images.js",
     "backfill:status": "node scripts/backfill-status.js",
     "test": "vitest run",
+    "test:shop": "npm --prefix apps/storefront run test",
+    "test:all": "npm run test && npm run test:shop",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
   },

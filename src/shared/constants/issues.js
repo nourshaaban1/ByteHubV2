@@ -51,6 +51,16 @@ export const ISSUES = Object.freeze({
 
   GENERIC_ITEM: { severity: SEVERITY.MEDIUM, penalty: 10, message: 'Placeholder / generic item rather than a real SKU' },
   DRAFT_ITEM: { severity: SEVERITY.MEDIUM, penalty: 10, message: 'Marked as a draft in the source catalog' },
+  /**
+   * Two sources describing one product disagree — a folder name against a
+   * photo filename, or a photo folder against the supplier sheet. Recorded so
+   * a human resolves it; the importer never picks a winner silently.
+   */
+  SOURCE_CONFLICT: { severity: SEVERITY.HIGH, penalty: 8, message: 'Sources disagree about this product' },
+
+  /** A field the catalog needs that no source records. Not a parse failure. */
+  INCOMPLETE_SOURCE_DATA: { severity: SEVERITY.MEDIUM, penalty: 0, message: 'Details are missing from every available source' },
+
   UNPARSED_COLUMNS: { severity: SEVERITY.INFO, penalty: 0, message: 'Some source columns could not be mapped and were kept as raw attributes' },
 });
 
