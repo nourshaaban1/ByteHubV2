@@ -131,8 +131,29 @@ describe('GET /products/public — what is visible', () => {
     await request(app).get(`${API}/products/public/${hiddenId}`).expect(404);
   });
 
-  it('rejects a malformed id rather than querying with it', async () => {
-    await request(app).get(`${API}/products/public/not-an-id`).expect(400);
+  it('rejects a malformed handle rather than querying with it', async () => {
+    // Product URLs are slugs now, so a slug-shaped handle is well-formed and
+    // simply not found. Anything outside the slug alphabet never reaches Mongo.
+    await request(app).get(`${API}/products/public/not-a-real-product`).expect(404);
+    await request(app).get(`${API}/products/public/${encodeURIComponent('../../etc')}`).expect(400);
+    await request(app).get(`${API}/products/public/${encodeURIComponent('Caps And Spaces')}`).expect(400);
+  });
+
+  it('serves a product by its slug, which is what the storefront links to', async () => {
+    const list = await request(app).get(`${API}/products/public?limit=1`).expect(200);
+    const { slug } = list.body.data[0];
+
+    expect(slug).toBeTruthy();
+    const response = await request(app).get(`${API}/products/public/${slug}`).expect(200);
+    expect(response.body.data.slug).toBe(slug);
+  });
+
+  it('still resolves a legacy id, so older links keep working', async () => {
+    const list = await request(app).get(`${API}/products/public?limit=1`).expect(200);
+    const { id, slug } = list.body.data[0];
+
+    const response = await request(app).get(`${API}/products/public/${id}`).expect(200);
+    expect(response.body.data.slug).toBe(slug);
   });
 });
 

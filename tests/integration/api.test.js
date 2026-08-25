@@ -16,9 +16,9 @@ import qualityService from '../../src/modules/quality/quality.service.js';
 import Product from '../../src/modules/product/product.model.js';
 
 const ROOT = process.cwd();
-const MASTER = path.join(ROOT, 'ByteHub_Master_Catalog.xlsx');
-const RETAIL = path.join(ROOT, 'product_catalog.xlsx');
-const PLAN = path.join(ROOT, 'ByteHub_Action_Plan.xlsx');
+const MASTER = path.join(ROOT, 'Old Catalog', 'ByteHub_Master_Catalog.xlsx');
+const RETAIL = path.join(ROOT, 'Old Catalog', 'product_catalog.xlsx');
+const PLAN = path.join(ROOT, 'Old Catalog', 'ByteHub_Action_Plan.xlsx');
 
 const API = '/api/v1';
 

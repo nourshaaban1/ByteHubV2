@@ -48,8 +48,19 @@ export const listQuery = z
     { message: 'min_price must be less than or equal to max_price', path: ['min_price'] },
   );
 
-export const idParam = z.object({
-  id: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Must be a 24-character MongoDB ObjectId'),
+/**
+ * A product handle: a slug, or a legacy ObjectId.
+ *
+ * Constrained rather than free text — it reaches a database query, and a
+ * bounded character set keeps anything exotic out of the regex path.
+ */
+export const handleParam = z.object({
+  handle: z
+    .string()
+    .trim()
+    .min(1)
+    .max(140)
+    .regex(/^[a-z0-9][a-z0-9-]*$|^[0-9a-fA-F]{24}$/, 'Must be a product slug or id'),
 });
 
-export default { listQuery, idParam };
+export default { listQuery, handleParam };

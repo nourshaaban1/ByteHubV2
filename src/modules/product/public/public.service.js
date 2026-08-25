@@ -107,13 +107,35 @@ export const publicService = {
     return { items: items.map(toPublicSummary), total, page, limit };
   },
 
-  async getById(id) {
-    const product = await Product.findOne({ _id: id, ...PUBLISHED_FILTER }).lean();
+  /**
+   * Looks a product up by slug, falling back to its id.
+   *
+   * Slugs are what the storefront puts in its URLs — an ObjectId in a product
+   * link is unreadable, unshareable and carries none of the keywords a search
+   * engine ranks on. Ids still resolve so older links and QR codes keep working.
+   */
+  async getByHandle(handle) {
+    const isObjectId = /^[0-9a-fA-F]{24}$/.test(handle);
+    const match = isObjectId ? { $or: [{ slug: handle }, { _id: handle }] } : { slug: handle };
+
+    const product = await Product.findOne({ ...match, ...PUBLISHED_FILTER }).lean();
     // A product that exists but is not published is reported as absent rather
-    // than forbidden: "this id is unverified" is itself information about the
-    // shop's internal state.
-    if (!product) throw notFound('Product', id);
+    // than forbidden: "this handle is unverified" is itself information about
+    // the shop's internal state.
+    if (!product) throw notFound('Product', handle);
     return toPublicDetail(product);
+  },
+
+  /** Every published slug, for the sitemap. */
+  async allHandles() {
+    const products = await Product.find(PUBLISHED_FILTER)
+      .select('slug updatedAt')
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    return products
+      .filter((product) => product.slug)
+      .map((product) => ({ slug: product.slug, updated_at: product.updatedAt }));
   },
 
   /**

@@ -21,10 +21,30 @@ export function createApp() {
   app.set('trust proxy', 1);
   app.disable('x-powered-by');
 
-  // crossOriginResourcePolicy is relaxed so the admin UI, served from a
-  // different port in development, can render the catalog product photos.
+  // crossOriginResourcePolicy is relaxed so a storefront served from a
+  // different origin can render the catalog product photos.
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
-  app.use(cors());
+
+  /**
+   * CORS is an allowlist, not a wildcard.
+   *
+   * With the storefront proxying the API through Next, the browser never makes
+   * a cross-origin request at all and this list stays empty. It exists for
+   * deployments that serve the shop and the API from different hosts.
+   */
+  app.use(
+    cors({
+      origin(origin, callback) {
+        // No Origin header: same-origin, curl, or a server-side fetch.
+        if (!origin) return callback(null, true);
+        if (env.corsOrigins.length === 0) return callback(null, !env.isProduction);
+        if (env.corsOrigins.includes('*')) return callback(null, true);
+        return callback(null, env.corsOrigins.includes(origin));
+      },
+      methods: ['GET', 'HEAD', 'OPTIONS'],
+      maxAge: 86_400,
+    }),
+  );
   app.use(compression());
   app.use(express.json({ limit: '2mb' }));
   app.use(express.urlencoded({ extended: true }));
@@ -49,7 +69,7 @@ export function createApp() {
    * traversal attempt in the path cannot escape the catalog directory.
    */
   app.use(
-    '/Catalog',
+    env.ingestion.imagePublicPath,
     express.static(path.resolve(process.cwd(), env.ingestion.imageRoot), {
       maxAge: env.isProduction ? '7d' : 0,
       fallthrough: true,
@@ -73,29 +93,38 @@ export function createApp() {
   });
 
   const api = express.Router();
-  api.use('/products', productRoutes);
-  api.use('/catalog', catalogRoutes);
-  api.use('/pricing', pricingRoutes);
-  api.use('/quality', qualityRoutes);
-  api.use('/analytics', analyticsRoutes);
 
-  // The brief specifies POST /products/import; the implementation lives in the
-  // catalog module, so the documented path is exposed as an alias.
-  api.use('/products/import', catalogRoutes);
+  // The storefront's endpoints. Always mounted — this is the product.
+  api.use('/products', productRoutes);
+
+  /**
+   * Back-office routes, mounted only when explicitly enabled.
+   *
+   * These write to the catalog and expose cost, margin and supplier data. The
+   * deployed storefront needs none of it, and the catalog is managed from the
+   * CLI, so in production they are simply not routed rather than merely
+   * password-protected.
+   */
+  if (env.enableAdminApi) {
+    api.use('/catalog', catalogRoutes);
+    api.use('/pricing', pricingRoutes);
+    api.use('/quality', qualityRoutes);
+    api.use('/analytics', analyticsRoutes);
+    api.use('/products/import', catalogRoutes);
+  }
 
   api.get('/', (_req, res) => {
     res.json({
       success: true,
       data: {
-        service: 'ByteHub Backend',
+        service: 'ByteHub Catalog API',
         version: '1.0.0',
         endpoints: {
-          products: `${env.apiPrefix}/products`,
-          catalog: `${env.apiPrefix}/catalog`,
-          pricing: `${env.apiPrefix}/pricing`,
-          quality: `${env.apiPrefix}/quality`,
-          analytics: `${env.apiPrefix}/analytics`,
+          products: `${env.apiPrefix}/products/public`,
+          facets: `${env.apiPrefix}/products/public/facets`,
+          sitemap: `${env.apiPrefix}/products/public/sitemap`,
         },
+        admin_api: env.enableAdminApi ? 'enabled' : 'disabled',
       },
     });
   });

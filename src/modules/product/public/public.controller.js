@@ -11,8 +11,13 @@ export const publicController = {
     ok(res, await publicService.facets());
   }),
 
-  getById: asyncHandler(async (req, res) => {
-    ok(res, await publicService.getById(req.params.id));
+  getByHandle: asyncHandler(async (req, res) => {
+    ok(res, await publicService.getByHandle(req.params.handle));
+  }),
+
+  /** Slugs and their last-modified dates, for the storefront's sitemap. */
+  sitemap: asyncHandler(async (_req, res) => {
+    ok(res, await publicService.allHandles());
   }),
 };
 

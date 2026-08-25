@@ -1,15 +1,27 @@
-import env from './config/env.js';
+import env, { assertProductionConfig } from './config/env.js';
 import logger from './shared/utils/logger.js';
 import { connectDatabase, disconnectDatabase } from './config/database.js';
 import createApp from './app.js';
 
 async function start() {
+  // Refuse to boot a misconfigured production server. A shop that starts
+  // unsafe is worse than one that does not start: the first looks healthy.
+  const problems = assertProductionConfig();
+  if (problems.length > 0) {
+    logger.error('refusing to start — invalid production configuration:');
+    for (const problem of problems) logger.error(`  · ${problem}`);
+    process.exit(1);
+  }
+
   await connectDatabase();
 
   const app = createApp();
   const server = app.listen(env.port, () => {
     logger.info(`ByteHub API listening on http://localhost:${env.port}${env.apiPrefix}`);
-    logger.info(`environment=${env.nodeEnv} base_currency=${env.baseCurrency}`);
+    logger.info(
+      `environment=${env.nodeEnv} base_currency=${env.baseCurrency} ` +
+        `admin_api=${env.enableAdminApi ? 'enabled' : 'disabled'}`,
+    );
   });
 
   const shutdown = async (signal) => {

@@ -14,8 +14,8 @@ import catalogService from '../../src/modules/catalog/catalog.service.js';
 import Product from '../../src/modules/product/product.model.js';
 
 const ROOT = process.cwd();
-const MASTER = path.join(ROOT, 'ByteHub_Master_Catalog.xlsx');
-const CATALOG_DIR = path.join(ROOT, 'Catalog');
+const MASTER = path.join(ROOT, 'Old Catalog', 'ByteHub_Master_Catalog.xlsx');
+const CATALOG_DIR = path.join(ROOT, 'New Catalog');
 const API = '/api/v1';
 
 let server;

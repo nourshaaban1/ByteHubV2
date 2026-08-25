@@ -53,6 +53,10 @@ function toPrice(pricing = {}) {
  * blank. `attributes` is a Mongo Map: after `.lean()` it is a plain object,
  * but a hydrated document hands back a real Map, so both are handled.
  */
+/** 'original_pull' -> 'Original pull'. Storage is a slug; a shopper reads words. */
+const toConditionLabel = (value) =>
+  String(value).replace(/_/g, ' ').replace(/^./, (character) => character.toUpperCase());
+
 function toSpecs(specs = {}) {
   const {
     power_wattage: powerWattage,
@@ -83,7 +87,8 @@ function toSpecs(specs = {}) {
     color,
     warranty_months: warrantyMonths,
     // 'unknown' is the schema default, not a fact about the product.
-    condition: condition && condition !== 'unknown' ? condition : null,
+    // Stored as a slug ('original_pull'); shown to a customer as words.
+    condition: condition && condition !== 'unknown' ? toConditionLabel(condition) : null,
   };
 
   const output = {};
