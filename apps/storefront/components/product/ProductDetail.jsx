@@ -1,13 +1,9 @@
-'use client';
-
 import Link from 'next/link';
-import { useProduct, useProducts } from '../../lib/hooks.js';
 import { formatPrice, dirFor } from '../../lib/format.js';
 import { toSpecRows, toHighlights } from '../../lib/specs.js';
 import { whatsappLink, shop } from '../../lib/shop.js';
 import Gallery from './Gallery.jsx';
 import ProductGrid from './ProductGrid.jsx';
-import EmptyState from '../ui/EmptyState.jsx';
 import Icon from '../ui/Icon.jsx';
 
 function Breadcrumbs({ product }) {
@@ -36,21 +32,18 @@ function Breadcrumbs({ product }) {
   );
 }
 
-/** Products from the same category, minus the one being viewed. */
-function RelatedProducts({ product }) {
-  const { data } = useProducts(
-    { category: product.category ? [product.category] : undefined, limit: 5 },
-    { enabled: Boolean(product.category) },
-  );
-
-  const related = (data?.items ?? []).filter((entry) => entry.id !== product.id).slice(0, 4);
+/**
+ * Products from the same category, fetched on the server by the page.
+ *
+ * Server-rendered rather than client-fetched: these are internal links, and a
+ * link only helps discovery if a crawler sees it in the HTML.
+ */
+function RelatedProducts({ product, related = [] }) {
   if (related.length === 0) return null;
 
   return (
     <section className="mt-16 border-t border-line pt-10">
-      <h2 className="section-title">
-        More in {product.category}
-      </h2>
+      <h2 className="section-title">More in {product.category}</h2>
       <div className="mt-6">
         <ProductGrid products={related} />
       </div>
@@ -58,54 +51,7 @@ function RelatedProducts({ product }) {
   );
 }
 
-function DetailSkeleton() {
-  return (
-    <div className="grid gap-10 lg:grid-cols-2">
-      <div className="skeleton aspect-square w-full rounded-2xl" />
-      <div className="space-y-4">
-        <div className="skeleton h-3 w-24" />
-        <div className="skeleton h-8 w-3/4" />
-        <div className="skeleton h-8 w-1/3" />
-        <div className="skeleton h-28 w-full" />
-        <div className="skeleton h-12 w-full" />
-      </div>
-    </div>
-  );
-}
-
-export default function ProductDetail({ id }) {
-  const { data: product, isLoading, isError, error } = useProduct(id);
-
-  if (isLoading) {
-    return (
-      <div className="container-page py-8 sm:py-10">
-        <DetailSkeleton />
-      </div>
-    );
-  }
-
-  if (isError || !product) {
-    const missing = error?.isNotFound ?? true;
-    return (
-      <div className="container-page py-16">
-        <EmptyState
-          icon={missing ? 'box' : 'alert'}
-          title={missing ? 'Product not available' : "Couldn't load this product"}
-          message={
-            missing
-              ? 'This product is no longer listed, or it has not been published to the store.'
-              : (error?.message ?? 'Something went wrong reaching the catalog.')
-          }
-          action={
-            <Link href="/products" className="btn-primary">
-              Browse all products
-            </Link>
-          }
-        />
-      </div>
-    );
-  }
-
+export default function ProductDetail({ product, related = [] }) {
   const price = formatPrice(product.price);
   const highlights = toHighlights(product.specs);
   const specRows = toSpecRows(product.specs);
@@ -259,7 +205,7 @@ export default function ProductDetail({ id }) {
         </div>
       ) : null}
 
-      <RelatedProducts product={product} />
+      <RelatedProducts product={product} related={related} />
     </div>
   );
 }

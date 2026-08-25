@@ -67,7 +67,7 @@ export default function SearchBox({ autoFocus, onNavigate, className }) {
   const onKeyDown = (event) => {
     if (event.key === 'Enter') {
       event.preventDefault();
-      if (highlighted >= 0 && results[highlighted]) goTo(`/products/${results[highlighted].id}`);
+      if (highlighted >= 0 && results[highlighted]) goTo(`/products/${results[highlighted].slug ?? results[highlighted].id}`);
       else submit();
       return;
     }
@@ -145,7 +145,7 @@ export default function SearchBox({ autoFocus, onNavigate, className }) {
                       role="option"
                       aria-selected={index === highlighted}
                       onMouseEnter={() => setHighlighted(index)}
-                      onClick={() => goTo(`/products/${product.id}`)}
+                      onClick={() => goTo(`/products/${product.slug ?? product.id}`)}
                       className={clsx(
                         'flex w-full items-center gap-3 px-3 py-2 text-left transition-colors',
                         index === highlighted ? 'bg-canvas' : 'bg-white',

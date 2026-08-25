@@ -6,6 +6,7 @@ storefront's job is to get a customer to the point of knowing what they want.
 
 - **Next.js 14 (App Router) · React Query · TailwindCSS**
 - Talks to the backend over HTTP only, through the public catalog API
+- Product pages are **statically generated** on slug URLs and carry Schema.org structured data
 
 ---
 
@@ -46,7 +47,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-The shop is on `http://localhost:3001`. The admin dashboard (a separate app) stays on port 3000.
+The shop is on `http://localhost:3001`.
 
 ---
 
@@ -69,8 +70,12 @@ deliberate and worth keeping:
   is applied by the API and is not expressible as a query parameter — a customer cannot list the
   shop's unverified rows by editing a URL.
 
-Next proxies `/api/v1/*` and `/Catalog/*` to the backend (`next.config.mjs`), so every browser
+Next proxies `/api/v1/*` and `/catalog/*` to the backend (`next.config.mjs`), so every browser
 request is same-origin and there is no CORS surface.
+
+Page rendering runs on the server, which cannot use a browser-side rewrite, so it addresses the
+backend directly through `API_ORIGIN` (`lib/server-api.js`). Same HTTP contract, same public
+endpoints, still no database access.
 
 ---
 
@@ -80,7 +85,9 @@ request is same-origin and there is no CORS surface.
 | ---------------- | ---------------------------------------------------------------------------- |
 | `/`              | Hero with live catalog counts, the four lead categories, featured products    |
 | `/products`      | Grid with search, category/brand/price filters, sorting and pagination        |
-| `/products/[id]` | Gallery, price, specs, description, "Contact to buy", related products        |
+| `/products/[handle]` | Gallery, price, specs, description, "Contact to buy", related products    |
+| `/sitemap.xml`   | Every published product with its real last-modified date                      |
+| `/robots.txt`    | Crawl policy — filtered and sorted catalog URLs are excluded                   |
 
 ### Filter state lives in the URL
 
@@ -101,6 +108,23 @@ stray `(` is a character to search for rather than a regex the customer accident
 
 The input is debounced by 250ms; without it, typing "charger" fires seven requests and the grid
 flickers through seven result sets.
+
+---
+
+## Built for search
+
+The only conversion path is "customer finds product, customer messages shop", so search visibility
+is the funnel rather than a finishing touch.
+
+- **Slug URLs** — `/products/joyroom-jr-tcg13-gan-wall-charger-45w-usb-c`, not a database id.
+- **Static HTML** — price, specs and description are in the markup, not fetched after hydration.
+- **Schema.org `Product`** on every product page, `Store` on the site, with only the fields the
+  catalog actually knows. An invented `gtin` is a manual-action risk, not a ranking boost.
+- **Sitemap and robots** — real last-modified dates; filtered and sorted URLs excluded so crawl
+  budget goes to product pages rather than to the same products in a different order.
+- **Images** — the catalog ships 24 MB of unprocessed supplier photos, several over 1 MB. `next/image`
+  re-encodes them to AVIF/WebP at the width actually requested: about **80% smaller** before the
+  format change counts.
 
 ---
 
@@ -135,7 +159,9 @@ the raw figure would drop USD-priced products out of an EGP range they actually 
 
 | Variable                  | Purpose                                                    |
 | ------------------------- | ---------------------------------------------------------- |
+| `NEXT_PUBLIC_SITE_URL`    | Public shop origin — canonical links, sitemap, Open Graph images |
 | `NEXT_PUBLIC_API_ORIGIN`  | Backend origin to proxy to (default `http://localhost:4000`) |
+| `API_ORIGIN`              | Server-side only; lets rendering reach the API over a private network name |
 | `NEXT_PUBLIC_WHATSAPP`    | Digits only, international format — `wa.me` rejects `+`      |
 | `NEXT_PUBLIC_PHONE`       | Display phone number, also used for the `tel:` link          |
 | `NEXT_PUBLIC_EMAIL`       | Footer contact                                               |
@@ -151,8 +177,15 @@ what the shop searches on, and "the black 65W one" costs a round trip that `S-A6
 - **Categories on the home page are hardcoded** in `lib/categories.js` and must match the backend
   taxonomy exactly, since the name is sent straight back as a filter. Everything else the catalog
   holds is still reachable from the listing page, whose filters are built from live facet counts.
-- **Deep-linked product pages render metadata server-side** (`generateMetadata`) so a shared link
-  previews with the real name and price; the page body still fetches client-side, which keeps the
-  React Query cache shared with the grid the customer arrived from.
-- **No product page is statically generated.** With prices and stock changing on the shop's
-  schedule, `revalidate: 60` on the metadata fetch is the only caching in play.
+- **Product pages are statically generated**, body and metadata together. A crawler and a phone on
+  slow mobile data both get complete HTML with the price already in it. They revalidate on a timer,
+  so a reprice reaches the shop without a rebuild.
+- **`dynamicParams` is off.** An unknown slug is answered by the router with a real 404 instead of
+  rendering, caching and serving an empty page with a 200 — a soft 404 is how a shop ends up with
+  unlimited junk URLs indexed as real pages. The cost is that a newly *published* product needs a
+  rebuild to become reachable, which the sitemap needs anyway.
+- **Legacy id URLs 404 here**, though the API still resolves them. No id-based product URL was ever
+  published publicly.
+- **The listing page is still client-rendered.** Its filters live in the query string and change on
+  every interaction, so there is nothing stable to pre-render; product pages are what search
+  engines rank.

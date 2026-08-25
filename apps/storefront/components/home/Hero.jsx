@@ -104,7 +104,7 @@ export default function Hero() {
                   aria-hidden={index >= shelf.length ? 'true' : undefined}
                 >
                   <Link
-                    href={`/products/${product.id}`}
+                    href={`/products/${product.slug ?? product.id}`}
                     tabIndex={index >= shelf.length ? -1 : undefined}
                     className="group flex w-44 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur transition-colors hover:border-white/25 sm:w-52"
                   >

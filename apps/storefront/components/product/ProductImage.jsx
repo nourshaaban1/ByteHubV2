@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import NextImage from 'next/image';
 import clsx from 'clsx';
 import Icon from '../ui/Icon.jsx';
 
@@ -14,9 +15,17 @@ import Icon from '../ui/Icon.jsx';
  * deliberate, and the categories stay visually distinguishable while the shop
  * fills the gaps in.
  *
- * Plain <img> rather than next/image: these are proxied through a rewrite from
- * the backend's static mount, and the optimiser adds a round trip and a config
- * surface for no benefit on already-sized catalog photos.
+ * Served through next/image. The catalog photos are unprocessed source files —
+ * several are over 1 MB and none are sized for a phone — so the optimiser
+ * re-encodes them to AVIF/WebP at the width actually requested. On the mobile
+ * connections this shop's customers are on, that is the difference between a
+ * grid that loads and one that does not.
+ *
+ * Sized by CSS rather than by `fill`. Every call site passes padding along with
+ * its dimensions, and an absolutely-positioned `fill` image covers the padding
+ * box — it would have quietly removed the inset that keeps product photos off
+ * the edge of their card. The width/height below are an aspect-ratio hint only;
+ * `sizes` is what drives which resized file the browser actually downloads.
  */
 const CATEGORY_STYLE = {
   Chargers: { icon: 'bolt', tint: 'from-amber-50 to-orange-100/60 text-amber-500' },
@@ -50,14 +59,19 @@ export default function ProductImage({ src, alt, category, className, sizes = '1
   }
 
   return (
-    <img
-      src={src}
-      alt={alt}
-      sizes={sizes}
-      loading={priority ? 'eager' : 'lazy'}
-      decoding="async"
-      onError={() => setFailed(true)}
-      className={clsx('bg-white object-contain', className)}
-    />
+    <span className={clsx('block overflow-hidden bg-white', className)}>
+      <NextImage
+        src={src}
+        alt={alt}
+        width={800}
+        height={800}
+        sizes={sizes}
+        priority={priority}
+        // A linked file can vanish from disk; the placeholder above is a far
+        // better outcome than a broken-image glyph in a product grid.
+        onError={() => setFailed(true)}
+        className="h-full w-full object-contain"
+      />
+    </span>
   );
 }
