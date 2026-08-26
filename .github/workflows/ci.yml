@@ -12,8 +12,10 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Matches the Dockerfiles, so CI cannot pass on a runtime production never uses.
-  NODE_VERSION: '20'
+  # Matches the Dockerfiles, so CI cannot pass on a runtime production never
+  # uses. 22 rather than 20 because 20 is end-of-life, and because jsdom's
+  # undici needs an API that only exists from 22 on.
+  NODE_VERSION: '22'
 
 jobs:
   api:
