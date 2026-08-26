@@ -1,5 +1,7 @@
 # ByteHub
 
+[![CI](https://github.com/nourshaaban1/ByteHubV2/actions/workflows/ci.yml/badge.svg)](https://github.com/nourshaaban1/ByteHubV2/actions/workflows/ci.yml)
+
 An online storefront for hardware and mobile accessories — chargers, cables, power banks and audio — and the catalog API behind it.
 
 ByteHub sells in person. The shop's job is to get a customer to the point of knowing exactly what they want, then hand them to a human on WhatsApp or the phone. There is no cart and no checkout, which makes **search visibility and page speed the whole conversion funnel**.
@@ -12,7 +14,7 @@ New Catalog/       product photos      one folder per product
 archive/web/       the old admin UI    archived — see archive/README.md
 ```
 
-- **426 tests** — 377 API, 49 storefront
+- **447 tests** — 398 API, 49 storefront — plus 29 smoke checks against the deployed stack
 - Every page is **rendered on the server** on slug URLs, with Schema.org structured data
 
 ---
@@ -228,9 +230,34 @@ Changing the FX rate does not silently invalidate stored figures — run `POST /
 npm run test:all
 ```
 
-**API (377).** Pricing arithmetic, the money and percent parsers, header detection, column mapping, SKU and brand normalisation, spec extraction and quality scoring — including the awkward cases: `"-25"` is a negative number and not a range, `"n/a — priced above market"` is not a price, Arabic-Indic digits, division by zero, `null` everywhere. Integration tests run the pipeline over the real spreadsheets and drive the HTTP surface against an in-memory MongoDB.
+**API (398).** Pricing arithmetic, the money and percent parsers, header detection, column mapping, SKU and brand normalisation, spec extraction and quality scoring — including the awkward cases: `"-25"` is a negative number and not a range, `"n/a — priced above market"` is not a price, Arabic-Indic digits, division by zero, `null` everywhere. Integration tests run the pipeline over the real spreadsheets and drive the HTTP surface against an in-memory MongoDB, including a production configuration where the back office is not mounted and a misconfigured boot is refused.
 
 **Storefront (49).** Structured data, canonical URLs, product rendering, and the server-side catalog reads. The recurring theme is refusing to invent: a missing price renders "Price on request" and never `0 EGP`, an estimated one says so, and the JSON-LD omits fields the catalog does not know rather than filling them in.
+
+### Smoke tests
+
+```bash
+npm run smoke -- --shop http://127.0.0.1:3001
+```
+
+29 checks against a **running** shop, because the tests above cover what the code does and these cover what the deployment does. That gap has been wrong three times: an image optimiser answering 200 while serving the untouched original, a canonical link inherited from the root layout that marked the whole catalog as duplicate, and a category page whose HTML contained no products at all. Every one of those is a 200 to a status-code check.
+
+So the checks compare rather than ping: the optimised image must be *smaller* than its source and arrive as AVIF or WebP; each category page's HTML must contain exactly as many product links as the facet count claims; the breadcrumb markup must match the visible trail word for word; an unknown slug must return a real 404. The back-office assertions run here too, against the deployed URL rather than a test harness.
+
+The optimiser check was verified by hiding `sharp` inside a running container — it fails with the content type as the evidence.
+
+### CI
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs four jobs. The first three are ordinary; the fourth is the one that earns its keep.
+
+| Job | What it does |
+|---|---|
+| API tests | 398 tests, with the in-memory MongoDB binary cached |
+| Storefront tests | 49 tests |
+| Dependency audit | Blocks on critical advisories; prints high ones without failing |
+| Deployment smoke | Deploys the real stack with Docker and runs the 29 checks against it |
+
+The deployment job follows the documented sequence exactly — data layer, import, publish, *then* build the shop — because the order is load-bearing and building the stack in one shot produces a product-less site with every container healthy. It finishes by asserting that a build which cannot reach the catalog **fails**, so that guard cannot rot.
 
 ---
 

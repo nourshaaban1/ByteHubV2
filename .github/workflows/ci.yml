@@ -1,0 +1,160 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A newer push to the same branch makes the running one irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Matches the Dockerfiles, so CI cannot pass on a runtime production never uses.
+  NODE_VERSION: '20'
+
+jobs:
+  api:
+    name: API tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      MONGOMS_DOWNLOAD_DIR: ${{ github.workspace }}/.cache/mongodb-binaries
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      # The integration suite starts a real MongoDB. Downloading the server on
+      # every run costs more than the tests do.
+      - name: Cache the in-memory MongoDB binary
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.cache/mongodb-binaries
+          key: mongodb-binaries-${{ runner.os }}
+
+      - run: npm ci
+
+      - name: Unit and integration tests
+        run: npm test
+
+  storefront:
+    name: Storefront tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/storefront/package-lock.json
+
+      - run: npm ci
+        working-directory: apps/storefront
+
+      - name: Component, SEO and server-read tests
+        run: npm test
+        working-directory: apps/storefront
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # Blocks on critical only. High-severity findings are printed in full but
+      # do not fail the build: the current ones are inside Next's bundled
+      # postcss and are only resolvable by a major upgrade, which is a decision
+      # to take deliberately rather than a build to leave red.
+      - name: Report high-severity advisories
+        run: |
+          echo "::group::API"
+          npm audit --omit=dev --audit-level=high || true
+          echo "::endgroup::"
+          echo "::group::Storefront"
+          npm audit --omit=dev --audit-level=high --prefix apps/storefront || true
+          echo "::endgroup::"
+
+      - name: Fail on critical advisories
+        run: |
+          npm audit --omit=dev --audit-level=critical
+          npm audit --omit=dev --audit-level=critical --prefix apps/storefront
+
+  deployment:
+    name: Deployment smoke
+    needs: [api, storefront]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SITE_URL: http://localhost:3001
+      SHOP: http://127.0.0.1:3001
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Validate the compose file
+        run: docker compose config --quiet
+
+      # Order matters and is the whole reason this job exists. The storefront
+      # pre-renders every product page at build time, so the catalog has to be
+      # imported and the API reachable *before* that image is built. Building
+      # the stack in one shot produces a shop with no products, cleanly, with
+      # every container healthy.
+      - name: Start the database and the API
+        run: docker compose up -d --wait mongo api
+
+      - name: Import the catalog
+        run: docker compose run --rm api npm run catalog -- --commit
+
+      - name: Publish the priced products
+        run: docker compose run --rm api npm run publish -- --commit
+
+      - name: Build the storefront against the live catalog
+        run: docker compose build storefront
+
+      - name: Start the storefront
+        run: docker compose up -d --wait storefront
+
+      - name: Smoke the deployment
+        run: node scripts/smoke.mjs --shop "$SHOP"
+
+      # Last, because it deliberately fails and invalidates the build cache.
+      # If this ever succeeds, a catalog-less build would ship silently: the
+      # site would start, the home page would render, and every product URL
+      # would 404.
+      - name: A build that cannot reach the catalog must fail
+        run: |
+          if docker compose build --build-arg API_ORIGIN=http://127.0.0.1:59999 storefront >build.log 2>&1; then
+            echo "::error::The storefront built with no reachable catalog. REQUIRE_CATALOG is not working."
+            exit 1
+          fi
+          if ! grep -q "No published products were reachable at build time" build.log; then
+            echo "::error::The build failed, but not for the expected reason:"
+            tail -30 build.log
+            exit 1
+          fi
+          echo "Build correctly refused: $(grep -m1 'No published products' build.log)"
+
+      - name: Container logs
+        if: failure()
+        run: docker compose logs --no-color --tail 200
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v --remove-orphans
