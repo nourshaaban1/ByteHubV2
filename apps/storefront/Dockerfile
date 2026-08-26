@@ -25,6 +25,13 @@ ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
     NEXT_PUBLIC_ADDRESS=$NEXT_PUBLIC_ADDRESS \
     NEXT_TELEMETRY_DISABLED=1
 
+# Where this build reads the catalog from, which is not where the running
+# container reads it from: the builder cannot resolve compose service names,
+# so it goes through a published port instead. Server-side only, and scoped
+# to this stage — the runtime image takes its own from the environment.
+ARG API_ORIGIN
+ENV API_ORIGIN=$API_ORIGIN
+
 # Product pages are pre-rendered here, so the API must be reachable during the
 # build and the catalog must already be published. REQUIRE_CATALOG turns an
 # unreachable API into a build failure rather than a shop that starts cleanly

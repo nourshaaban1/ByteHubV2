@@ -1,8 +1,9 @@
 # ByteHub — production-shaped stack.
 #
-# Three services: MongoDB, the catalog API, and the storefront. Only the
-# storefront is exposed publicly; the API is reachable on the internal network
-# and through the storefront's proxy, which is why its admin routes stay off.
+# Three services: MongoDB, the catalog API, and the storefront. Mongo is
+# internal only; the API is bound to loopback so the storefront build can reach
+# it; the storefront is the one thing published normally. The API's admin routes
+# are not mounted at all, which is what makes the loopback binding harmless.
 #
 # Order matters. The storefront pre-renders every product page at build time,
 # so the catalog has to exist and the API has to be reachable *before* that
@@ -13,7 +14,7 @@
 #   docker compose up -d mongo api
 #   docker compose run --rm api npm run catalog -- --commit
 #   docker compose run --rm api npm run publish -- --commit
-#   docker compose build storefront      # joins the network created above
+#   docker compose build storefront      # reads the catalog over loopback
 #   docker compose up -d storefront
 
 services:
@@ -57,19 +58,29 @@ services:
     volumes:
       # Photos are read from disk, so new ones need no image rebuild.
       - ./New Catalog:/app/New Catalog:ro
-    expose:
-      - '4000'
+    # Loopback only — not reachable from another machine. It is bound at all
+    # because the storefront image is built against it: BuildKit will not join
+    # a named compose network, so the build runs on the host's network stack
+    # and reaches the API the one way that is available there.
+    ports:
+      - '127.0.0.1:4000:4000'
 
   storefront:
     build:
       context: ./apps/storefront
-      # The build fetches the published catalog from the API, so it has to run
-      # on the same network. That network is created by `up -d mongo api`,
-      # which is why the storefront is built after them and not alongside.
-      network: bytehub
+      # BuildKit only accepts default/none/host for a build's network, never a
+      # named compose network, so the build runs on the host's stack and talks
+      # to the API through the loopback port the api service publishes. That
+      # port exists by the time this runs because the storefront is built after
+      # `up -d mongo api`, not alongside it.
+      network: host
       args:
         NEXT_PUBLIC_SITE_URL: ${SITE_URL:?SITE_URL is required}
-        # Build-time page generation talks to the API over the compose network.
+        # Where *this build* reads the catalog from. Server-side only, and
+        # overridden at runtime by the service environment below.
+        API_ORIGIN: http://127.0.0.1:4000
+        # Baked into the rewrite table at build time, so it has to be the name
+        # the running container will use — not the one the builder used.
         NEXT_PUBLIC_API_ORIGIN: http://api:4000
         NEXT_PUBLIC_WHATSAPP: ${WHATSAPP:-201044100855}
         NEXT_PUBLIC_PHONE: ${PHONE:-+20 10 4410 0855}
@@ -83,12 +94,15 @@ services:
       NODE_ENV: production
       PORT: '3001'
       HOSTNAME: '0.0.0.0'
-      # Server-side fetches and the rewrite proxy both resolve over the
-      # internal network, so the API is never addressed from the browser.
+      # Server-side fetches resolve over the internal network, so the API is
+      # never addressed from the browser. The rewrite proxy needs no variable:
+      # its destination was baked into the route manifest at build time.
       API_ORIGIN: http://api:4000
-      NEXT_PUBLIC_API_ORIGIN: http://api:4000
+    # SHOP_PORT, not PORT: the backend uses PORT for its own listen port, and
+    # compose reads the same .env, so a generic name here publishes the shop on
+    # whatever port the API happens to be configured with.
     ports:
-      - '${PORT:-3001}:3001'
+      - '${SHOP_PORT:-3001}:3001'
 
 networks:
   # Named explicitly rather than relying on `default`, so the storefront build

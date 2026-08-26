@@ -135,9 +135,10 @@ is the funnel rather than a finishing touch.
   as a duplicate of the home page.
 - **Sitemap and robots** — real last-modified dates; filtered and sorted URLs excluded so crawl
   budget goes to product pages rather than to the same products in a different order.
-- **Images** — the catalog ships 24 MB of unprocessed supplier photos, several over 1 MB. `next/image`
-  re-encodes them to AVIF/WebP at the width actually requested: about **80% smaller** before the
-  format change counts.
+- **Images** — the catalog ships 24 MB of unprocessed supplier photos, several over 1 MB.
+  `next/image` re-encodes them to AVIF at the width actually requested. Measured in the container:
+  981 KB of grid photos become 97 KB, a **90% saving**. `sharp` is a direct dependency because
+  standalone mode requires it, and without it the optimizer silently serves the original file.
 
 ---
 
@@ -197,6 +198,10 @@ what the shop searches on, and "the black 65W one" costs a round trip that `S-A6
   rendering, caching and serving an empty page with a 200 — a soft 404 is how a shop ends up with
   unlimited junk URLs indexed as real pages. The cost is that a newly *published* product needs a
   rebuild to become reachable, which the sitemap needs anyway.
+- **`next/font/google` downloads Inter during the build.** It is self-hosted from then on, so this
+  is a build-time dependency rather than a runtime one — but it does mean the build talks to Google,
+  and it flaked once during container verification. Vendoring the woff2 and switching to
+  `next/font/local` would remove it.
 - **Legacy id URLs 404 here**, though the API still resolves them. No id-based product URL was ever
   published publicly.
 - **The listing page is server-rendered per request, then hydrates.** Its filters live in the query

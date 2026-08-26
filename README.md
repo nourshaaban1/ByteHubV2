@@ -89,7 +89,7 @@ docker compose build storefront
 docker compose up -d storefront
 ```
 
-Only the storefront is published to the host. MongoDB and the API sit on the internal network, and the API's back-office routes are not mounted at all.
+MongoDB is reachable only inside the network. The storefront is published normally; the API is published on **loopback only** (`127.0.0.1:4000`), because the storefront's image is built against it — BuildKit refuses to join a named compose network, so the build runs on the host's network stack and reaches the API the one way available there. It is not reachable from another machine, and its back-office routes are not mounted at all.
 
 The server **refuses to boot** on a misconfigured production environment rather than starting in an unsafe state — no `MONGODB_URI`, no `SITE_URL`, a wildcard `CORS_ORIGINS`, or admin routes enabled with no API keys.
 
@@ -123,7 +123,9 @@ Only fields the catalog actually knows are emitted. An invented `gtin` or a gues
 
 **A sitemap and a crawl budget.** `/sitemap.xml` lists every published product with its true last-modified date. `robots.txt` blocks filtered and sorted catalog URLs, which are the same products in a different order.
 
-**Images.** The catalog ships 24 MB of unprocessed supplier photos, several over 1 MB. They are re-encoded to AVIF/WebP at the width actually requested — around **80% smaller** before the format change is even counted.
+**Images.** The catalog ships 24 MB of unprocessed supplier photos, several over 1 MB. They are re-encoded to AVIF at the width actually requested. Measured across the product grid in the running container: **981 KB → 97 KB, a 90% saving.**
+
+This needs `sharp`, which Next requires explicitly in standalone mode. Without it the optimizer does not fail — it quietly serves the original file at every size, which is how the deployed shop was shipping raw supplier photos while every request still returned 200.
 
 ---
 
@@ -205,6 +207,7 @@ Any field edited by hand is recorded in `metadata.locked_fields`, and the import
 | Variable | Default | Purpose |
 |---|---|---|
 | `SITE_URL` | `http://localhost:3001` | Public shop origin — canonical links and sitemap |
+| `SHOP_PORT` | `3001` | Host port the shop is published on. Not `PORT` — the API uses that, from the same file |
 | `MONGODB_URI` | `mongodb://127.0.0.1:27017/bytehub` | |
 | `ENABLE_ADMIN_API` | off in production | Mounts the back-office routes |
 | `ADMIN_API_KEYS` | *(empty)* | Required when the admin API is on |
@@ -236,5 +239,6 @@ npm run test:all
 - **No cart or checkout.** Deliberate — the shop sells in person, and "Contact to buy" is the conversion point.
 - **No CSP header.** The app inlines JSON-LD and Next injects its own bootstrap scripts, so a real policy needs nonces threaded through the render path. A partial CSP loosened until it passes is worse than none; the headers that are unconditionally correct are set.
 - **Legacy id URLs 404 on the storefront**, though the API still resolves them. No id-based product URL was ever published publicly.
+- **The storefront build reaches the network twice**: for the catalog, and for `next/font/google`, which downloads Inter at build time and self-hosts it thereafter. The font fetch failed once during verification and succeeded on retry, so an offline or locked-down builder needs the font vendored into the repo first.
 - **FX is a single configured rate**, not a live feed. Fine for comparison; revisit before customer-facing pricing depends on it.
 - **14 of 28 products are unpriced** and therefore unpublished. `npm run catalog -- --gaps` lists exactly what is missing.
