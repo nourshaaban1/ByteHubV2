@@ -144,19 +144,45 @@ describeIf('building product drafts', () => {
     expect(new Set(fingerprints).size).toBe(fingerprints.length);
   });
 
-  it('sells at RRP', () => {
+  it('sells at the free-ship list price, never at RRP', () => {
     for (const { entry, product } of built) {
       if (!entry.pricing) continue;
-      expect(product.pricing.selling_price).toBe(entry.pricing.rrp);
+
+      expect(product.pricing.selling_price).toBe(entry.pricing.selling_price);
+      // RRP is a retail recommendation kept for reference. The customer pays
+      // the agreed sell price plus absorbed shipping, which is always lower —
+      // pricing from RRP would quote roughly a quarter over the intended price.
+      expect(product.pricing.selling_price).toBeLessThan(entry.pricing.rrp);
+    }
+  });
+
+  it('has no price for a product the workbook never agreed a sell price for', () => {
+    // The Soundcore earbuds and the Zolo power bank carry an RRP in an
+    // opportunity or Avoid note. An RRP is not an agreed price, and falling
+    // back to it would put products on sale the shop never approved.
+    const withRrpOnly = ['A3957', 'A3959', 'A3969', 'A110D', 'JR-QP191'];
+
+    for (const sku of withRrpOnly) {
+      const found = built.find(({ product }) => product.sku === sku);
+      expect(found, `${sku} should still be in the catalog`).toBeDefined();
+      expect(found.product.pricing.selling_price, `${sku} must not be priced`).toBeNull();
+      // Even granted the verification import never gives, the price gate alone
+      // keeps it out of the shop.
+      expect(
+        isPublishable({ ...found.product, status: { ...found.product.status, is_verified: true } }),
+        `${sku} must not be publishable`,
+      ).toBe(false);
     }
   });
 
   it('computes both margin bases from the quoted cost', () => {
     const charger = built.find(({ product }) => product.sku === 'JR-TCG13').product;
     expect(charger.pricing.rdp).toBe(440);
-    expect(charger.pricing.selling_price).toBe(750);
-    expect(charger.pricing.margin_percentage).toBe(70.45);
-    expect(charger.pricing.gross_margin_percentage).toBe(41.33);
+    expect(charger.pricing.rrp).toBe(750);
+    // 595 = the 550 agreed sell price + the 45 EGP of shipping ByteHub absorbs.
+    expect(charger.pricing.selling_price).toBe(595);
+    expect(charger.pricing.margin_percentage).toBe(35.23);
+    expect(charger.pricing.gross_margin_percentage).toBe(26.05);
   });
 
   it('records EGP even when no figure is quoted, so a later price is unambiguous', () => {

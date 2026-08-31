@@ -100,8 +100,12 @@ export function buildDraft(entry, images = []) {
       currency: entry.pricing?.currency ?? 'EGP',
       rdp: entry.pricing?.rdp ?? null,
       rrp: entry.pricing?.rrp ?? null,
-      // Selling price follows RRP, which is what the workbook's margins assume.
-      selling_price: entry.pricing?.selling_price ?? entry.pricing?.rrp ?? null,
+      // What the customer pays is the workbook's Free-Ship List Price, carried
+      // in the manifest as `selling_price`. It sits below RRP because it is the
+      // agreed sell price plus absorbed shipping, not a retail recommendation —
+      // so there is deliberately no fallback to RRP here. A product the
+      // workbook never agreed a sell price for has no price at all.
+      selling_price: entry.pricing?.selling_price ?? null,
       price_source: entry.pricing?.price_source ?? null,
       last_priced_at: hasPrice ? new Date() : null,
     },

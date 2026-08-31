@@ -19,17 +19,32 @@
  *     what is missing. Both are surfaced in the admin rather than resolved
  *     silently.
  *
- * Prices are EGP. `rdp` is wholesale cost; `rrp` is recommended retail and
- * becomes the customer-facing selling price.
+ * Prices are EGP.
+ *
+ *   rdp            wholesale cost
+ *   rrp            recommended retail, kept as a reference figure only
+ *   selling_price  what the customer pays — the workbook's FREE-SHIP LIST
+ *                  PRICE, which is the agreed sell price plus the 45 EGP of
+ *                  courier cost ByteHub absorbs so the product can be listed
+ *                  with free delivery.
+ *
+ * The distinction matters: RRP runs well above the free-ship list price on
+ * every line (JR-TCG13 lists at 595 against a 750 RRP), so pricing from RRP
+ * would quote customers roughly a quarter more than the shop intends to charge.
+ *
+ * Only the SKUs the workbook actually approves — Must Buy and Test Buy — carry
+ * a free-ship list price. A product quoted nowhere but an opportunity or
+ * readiness note has an RRP and no agreed sell price, which is not the same
+ * thing as a price, so it stays `pricing: null` and unpublished.
  */
 
 /** Where a price came from, so any figure can be traced back to a sheet. */
 const SRC = {
-  MUST: 'Master Catalog — Must Buy (verified RDP/RRP)',
-  TEST: 'Master Catalog — Test Buy (verified RDP/RRP)',
-  AVOID: 'Master Catalog — Avoid (verified RDP/RRP)',
-  OPP: 'Master Catalog — Additional Opportunities',
-  NOTE: 'Master Catalog — Generic Catalog (USD) reconciliation note',
+  MUST: 'ByteHub Catalog — Must Buy (Free-Ship List Price)',
+  TEST: 'ByteHub Catalog — Test Buy (Free-Ship List Price)',
+  AVOID: 'ByteHub Catalog — Avoid (no sell price agreed)',
+  OPP: 'ByteHub Catalog — Additional Opportunities (reference RRP only)',
+  NOTE: 'ByteHub Catalog — Generic Catalog (USD) reconciliation note',
 };
 
 export const CATALOG_ROOT = 'New Catalog';
@@ -44,7 +59,7 @@ export const PRODUCTS = [
     brand: 'Joyroom',
     category: 'Cables',
     subcategory: 'Charging Cables',
-    pricing: { currency: 'EGP', rdp: 165, rrp: 375, price_source: SRC.MUST },
+    pricing: { currency: 'EGP', rdp: 165, rrp: 375, selling_price: 295, price_source: SRC.MUST },
     procurement: 'must_buy',
     quantity: 30,
     specs: {
@@ -69,7 +84,7 @@ export const PRODUCTS = [
     brand: 'Joyroom',
     category: 'Cables',
     subcategory: 'Charging Cables',
-    pricing: { currency: 'EGP', rdp: 120, rrp: 325, price_source: SRC.MUST },
+    pricing: { currency: 'EGP', rdp: 120, rrp: 325, selling_price: 245, price_source: SRC.MUST },
     procurement: 'must_buy',
     quantity: 50,
     specs: {
@@ -97,7 +112,7 @@ export const PRODUCTS = [
     brand: 'Joyroom',
     category: 'Cables',
     subcategory: 'Multi-Head Cables',
-    pricing: { currency: 'EGP', rdp: 265, rrp: 525, price_source: SRC.TEST },
+    pricing: { currency: 'EGP', rdp: 265, rrp: 525, selling_price: 445, price_source: SRC.TEST },
     procurement: 'test_buy',
     quantity: 10,
     specs: {
@@ -125,7 +140,7 @@ export const PRODUCTS = [
     brand: 'Joyroom',
     category: 'Cables',
     subcategory: 'Multi-Head Cables',
-    pricing: { currency: 'EGP', rdp: 495, rrp: 790, price_source: SRC.TEST },
+    pricing: { currency: 'EGP', rdp: 495, rrp: 790, selling_price: 645, price_source: SRC.TEST },
     procurement: 'test_buy',
     quantity: 8,
     specs: {
@@ -151,7 +166,7 @@ export const PRODUCTS = [
     // this is a cable. Categorised by what the product is, not where the photos sit.
     category: 'Cables',
     subcategory: 'Charging Cables',
-    pricing: { currency: 'EGP', rdp: 185, rrp: 450, price_source: SRC.TEST },
+    pricing: { currency: 'EGP', rdp: 185, rrp: 450, selling_price: 345, price_source: SRC.TEST },
     procurement: 'test_buy',
     quantity: 15,
     specs: {
@@ -326,7 +341,7 @@ export const PRODUCTS = [
     brand: 'Joyroom',
     category: 'Chargers',
     subcategory: 'Wall Chargers',
-    pricing: { currency: 'EGP', rdp: 440, rrp: 750, price_source: SRC.MUST },
+    pricing: { currency: 'EGP', rdp: 440, rrp: 750, selling_price: 595, price_source: SRC.MUST },
     procurement: 'must_buy',
     quantity: 30,
     specs: {
@@ -451,7 +466,13 @@ export const PRODUCTS = [
     brand: 'Soundcore',
     category: 'Audio',
     subcategory: 'True Wireless Earbuds',
-    pricing: { currency: 'EGP', rdp: 1390, rrp: 1699, price_source: SRC.OPP },
+    // Quoted at RDP 1,390 / RRP 1,699 in the Additional Opportunities sheet,
+    // which lists what could be stocked — not what has been approved to sell.
+    // No agreed sell price means no free-ship list price, so nothing to charge.
+    pricing: null,
+    gaps: [
+      'No agreed sell price: the workbook carries a reference RRP of 1,699 EGP in an opportunity note, but no Free-Ship List Price',
+    ],
     specs: {
       condition: 'new',
       interface: 'Bluetooth 5.4',
@@ -478,7 +499,12 @@ export const PRODUCTS = [
     brand: 'Soundcore',
     category: 'Audio',
     subcategory: 'True Wireless Earbuds',
-    pricing: { currency: 'EGP', rdp: 880, rrp: 1099, price_source: SRC.NOTE },
+    // RDP 880 / RRP 1,099 appears only as a reconciliation note against a
+    // generic USD row. It was never carried into Must Buy or Test Buy.
+    pricing: null,
+    gaps: [
+      'No agreed sell price: the workbook carries a reference RRP of 1,099 EGP in a reconciliation note, but no Free-Ship List Price',
+    ],
     specs: {
       condition: 'new',
       interface: 'Bluetooth 5.3',
@@ -506,7 +532,12 @@ export const PRODUCTS = [
     brand: 'Soundcore',
     category: 'Audio',
     subcategory: 'True Wireless Earbuds',
-    pricing: { currency: 'EGP', rdp: 4350, rrp: 5111, price_source: SRC.NOTE },
+    // RDP 4,350 / RRP 5,111 appears only as a reconciliation note against a
+    // generic USD row. It was never carried into Must Buy or Test Buy.
+    pricing: null,
+    gaps: [
+      'No agreed sell price: the workbook carries a reference RRP of 5,111 EGP in a reconciliation note, but no Free-Ship List Price',
+    ],
     specs: {
       condition: 'new',
       interface: 'Bluetooth 5.3',
@@ -535,7 +566,7 @@ export const PRODUCTS = [
     brand: 'Joyroom',
     category: 'Audio',
     subcategory: 'True Wireless Earbuds',
-    pricing: { currency: 'EGP', rdp: 925, rrp: 1400, price_source: SRC.TEST },
+    pricing: { currency: 'EGP', rdp: 925, rrp: 1400, selling_price: 1245, price_source: SRC.TEST },
     procurement: 'test_buy',
     quantity: 8,
     specs: {
@@ -560,7 +591,7 @@ export const PRODUCTS = [
     brand: 'Joyroom',
     category: 'Power Banks',
     subcategory: 'Retractable Power Banks',
-    pricing: { currency: 'EGP', rdp: 990, rrp: 1399, price_source: SRC.TEST },
+    pricing: { currency: 'EGP', rdp: 990, rrp: 1399, selling_price: 1145, price_source: SRC.TEST },
     procurement: 'test_buy',
     quantity: 5,
     specs: {
@@ -587,7 +618,7 @@ export const PRODUCTS = [
     brand: 'Joyroom',
     category: 'Power Banks',
     subcategory: 'Magnetic Power Banks',
-    pricing: { currency: 'EGP', rdp: 1100, rrp: 1500, price_source: SRC.TEST },
+    pricing: { currency: 'EGP', rdp: 1100, rrp: 1500, selling_price: 1245, price_source: SRC.TEST },
     procurement: 'test_buy',
     quantity: 5,
     specs: {
@@ -611,7 +642,12 @@ export const PRODUCTS = [
     name: 'Joyroom JR-QP191 Star Series Mini Power Bank — 10,000 mAh, 22.5W',
     brand: 'Joyroom',
     category: 'Power Banks',
-    pricing: { currency: 'EGP', rdp: 675, rrp: 999, price_source: SRC.NOTE },
+    // The workbook approves the JR-QP192 Mini (20,000 mAh) and calls this
+    // 10,000 mAh QP191 a 'close cousin' — a comparison, not an approval.
+    pricing: null,
+    gaps: [
+      'No agreed sell price: the workbook approves the 20,000 mAh JR-QP192 and quotes this one only as a reference RRP of 999 EGP',
+    ],
     specs: {
       battery_capacity: 10000,
       power_wattage: 22.5,
@@ -634,7 +670,12 @@ export const PRODUCTS = [
     name: 'Anker Zolo Power Bank — 10,000 mAh, 22.5W, Built-In USB-C Cable',
     brand: 'Anker',
     category: 'Power Banks',
-    pricing: { currency: 'EGP', rdp: 1150, rrp: 1399, price_source: SRC.AVOID },
+    // On the Avoid sheet, which quotes cost and retail precisely to argue
+    // against stocking it. Deliberately no sell price and no free-ship price.
+    pricing: null,
+    gaps: [
+      'Not approved for sale: the Avoid sheet quotes RDP 1,150 / RRP 1,399 to make the case against stocking it, and sets no sell price',
+    ],
     procurement: 'avoid',
     specs: {
       battery_capacity: 10000,
@@ -678,12 +719,15 @@ export const PRODUCTS = [
   },
   {
     folder: 'Power Bank/Joyroom JR-PBF15 10000mAh Power Bank, 22.5W Fast Charging, LED Display',
-    sku: 'JR-PBF15',
-    sku_evidence: 'Folder name only — not present in any supplier sheet',
-    name: 'Joyroom JR-PBF15 Power Bank — 10,000 mAh, 22.5W, LED Display',
+    sku: 'JR-PBF12',
+    sku_evidence:
+      'Must Buy sheet prices "Joyroom JR-PBF12 10000mAh LED Power Bank 22.5W"; confirmed by the shop as the same product this folder photographs. The folder name still reads PBF15.',
+    name: 'Joyroom JR-PBF12 Power Bank — 10,000 mAh, 22.5W, LED Display',
     brand: 'Joyroom',
     category: 'Power Banks',
-    pricing: null,
+    pricing: { currency: 'EGP', rdp: 420, rrp: 730, selling_price: 625, price_source: SRC.MUST },
+    procurement: 'must_buy',
+    quantity: 20,
     specs: {
       battery_capacity: 10000,
       power_wattage: 22.5,
@@ -696,7 +740,7 @@ export const PRODUCTS = [
         'Joyroom JR-PBF15 holds 10,000 mAh and charges at up to 22.5W, with an LED display reading out the remaining charge as a number.',
     },
     conflicts: [
-      'The workbook prices JR-PBF12, a 10,000 mAh 22.5W LED power bank — the same description but a different model code. Confirm whether this folder is PBF15 or PBF12; the price depends on it.',
+      'The folder is named JR-PBF15, a code that appears in no supplier sheet. The shop confirmed it is the JR-PBF12 the workbook prices, so the SKU here is PBF12 and the folder name is the one that is wrong. Worth renaming the folder before the next import.',
     ],
     gaps: ['No wholesale or retail price for PBF15 in any supplier sheet'],
   },

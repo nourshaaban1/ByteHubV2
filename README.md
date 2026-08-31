@@ -14,7 +14,7 @@ New Catalog/       product photos      one folder per product
 archive/web/       the old admin UI    archived — see archive/README.md
 ```
 
-- **447 tests** — 398 API, 49 storefront — plus 29 smoke checks against the deployed stack
+- **448 tests** — 399 API, 49 storefront — plus 29 smoke checks against the deployed stack
 - Every page is **rendered on the server** on slug URLs, with Schema.org structured data
 
 ---
@@ -133,7 +133,7 @@ This needs `sharp`, which Next requires explicitly in standalone mode. Without i
 
 ## The catalog
 
-`New Catalog/` is the product list: **28 products across Cables, Chargers, Audio and Power Banks**, with 191 photos. One folder is one product.
+`New Catalog/` is the product list: **28 products across Cables, Chargers, Audio and Power Banks**, with 192 photos and the `ByteHub Catalog.xlsx` workbook they are priced from. One folder is one product.
 
 Folder names cannot supply prices, SKUs or sales copy, so the mapping is explicit and reviewable in [`catalog/new-catalog.manifest.js`](catalog/new-catalog.manifest.js). Every entry states its evidence:
 
@@ -153,7 +153,7 @@ Importing also archives anything the manifest does not list, so rows left over f
 npm run publish -- --commit
 ```
 
-Puts the priced products in the shop. Today that is **14 of 28** — the rest have photos, categories, specs and copy but no quoted price, and the publishable contract refuses a product with no price.
+Puts the priced products in the shop. Today that is **10 of 28** — the rest have photos, categories, specs and copy but no agreed sell price, and the publishable contract refuses a product with no price.
 
 ### Product photos
 
@@ -188,6 +188,10 @@ The archived admin dashboard in [`archive/web/`](archive/README.md) still works 
 ---
 
 ## Data model and pricing
+
+The customer-facing price is the workbook's **Free-Ship List Price**: the agreed sell price plus the 45 EGP of courier cost ByteHub absorbs so the product can be listed with free delivery. It is deliberately *not* the RRP, which runs well above it on every line — the JR-TCG13 lists at 595 against a 750 RRP, so pricing from RRP would quote customers roughly a quarter over the intended price.
+
+RRP is still stored, as the reference figure it is. An RRP on its own is not a price: a product the workbook quotes an RRP for but never agreed a sell price for has `selling_price: null` and stays unpublished.
 
 Both margin definitions are computed and stored, because they answer different questions and the source workbooks quote the second:
 
@@ -230,7 +234,7 @@ Changing the FX rate does not silently invalidate stored figures — run `POST /
 npm run test:all
 ```
 
-**API (398).** Pricing arithmetic, the money and percent parsers, header detection, column mapping, SKU and brand normalisation, spec extraction and quality scoring — including the awkward cases: `"-25"` is a negative number and not a range, `"n/a — priced above market"` is not a price, Arabic-Indic digits, division by zero, `null` everywhere. Integration tests run the pipeline over the real spreadsheets and drive the HTTP surface against an in-memory MongoDB, including a production configuration where the back office is not mounted and a misconfigured boot is refused.
+**API (399).** Pricing arithmetic, the money and percent parsers, header detection, column mapping, SKU and brand normalisation, spec extraction and quality scoring — including the awkward cases: `"-25"` is a negative number and not a range, `"n/a — priced above market"` is not a price, Arabic-Indic digits, division by zero, `null` everywhere. Integration tests run the pipeline over the real spreadsheets and drive the HTTP surface against an in-memory MongoDB, including a production configuration where the back office is not mounted and a misconfigured boot is refused.
 
 **Storefront (49).** Structured data, canonical URLs, product rendering, and the server-side catalog reads. The recurring theme is refusing to invent: a missing price renders "Price on request" and never `0 EGP`, an estimated one says so, and the JSON-LD omits fields the catalog does not know rather than filling them in.
 
@@ -268,4 +272,4 @@ The deployment job follows the documented sequence exactly — data layer, impor
 - **Legacy id URLs 404 on the storefront**, though the API still resolves them. No id-based product URL was ever published publicly.
 - **The storefront build reaches the network twice**: for the catalog, and for `next/font/google`, which downloads Inter at build time and self-hosts it thereafter. The font fetch failed once during verification and succeeded on retry, so an offline or locked-down builder needs the font vendored into the repo first.
 - **FX is a single configured rate**, not a live feed. Fine for comparison; revisit before customer-facing pricing depends on it.
-- **14 of 28 products are unpriced** and therefore unpublished. `npm run catalog -- --gaps` lists exactly what is missing.
+- **18 of 28 products are unpriced** and therefore unpublished. `npm run catalog -- --gaps` lists exactly what is missing. Five of them carry an RRP the workbook quotes only as a reference — three Soundcore earbuds, the Joyroom QP191 and the Anker Zolo 10K — which is not the same as an agreed sell price, so they stay out of the shop until one is quoted. As a result every product currently on sale is Joyroom.
