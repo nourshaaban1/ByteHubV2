@@ -21,3 +21,6 @@ out/
 desktop.ini
 Thumbs.db
 ehthumbs.db
+
+# Generated report — regenerate with `npm run report:missing`
+ByteHub-products-not-live.xlsx

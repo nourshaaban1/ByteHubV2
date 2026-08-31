@@ -689,7 +689,7 @@ export const PRODUCTS = [
         'The Anker Zolo power bank holds 10,000 mAh and charges at up to 22.5W, with a USB-C cable built into the casing so there is no separate lead to lose.',
     },
     conflicts: [
-      'The workbook places A110D on the Avoid list — the wholesale discount is thin, leaving roughly an 18% margin. It is imported and priced, but flagged so the decision to stock it stays deliberate.',
+      'The workbook places A110D on the Avoid list — the wholesale discount is thin, leaving roughly an 18% margin, and it sets no sell price. It is imported with its photos and copy so the decision to stock it stays a live one, but it is not on sale.',
     ],
   },
   {
